@@ -31,7 +31,6 @@ const allowedOrigins = [
     process.env.APP_URL,
 ].filter(Boolean);
 
-// Middleware
 app.use(
     helmet({
         crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -43,13 +42,13 @@ app.set("trust proxy", 1);
 app.use(
     cors({
         origin: (origin, callback) => {
+            console.log("Incoming origin:", origin);
+            console.log("Allowed origins:", allowedOrigins);
+
             if (!origin) return callback(null, true);
+            if (allowedOrigins.includes(origin)) return callback(null, true);
 
-            if (allowedOrigins.includes(origin)) {
-                return callback(null, true);
-            }
-
-            return callback(new Error(`CORS blocked for origin: ${origin}`));
+            return callback(new Error(`Not allowed by CORS: ${origin}`));
         },
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -78,16 +77,13 @@ app.use(
     })
 );
 
-// Health route
 app.get("/health", (req, res) => {
     res.status(200).json({ status: "ok" });
 });
 
-// Database Sync
 await db.sync();
 console.log("All models synced correctly..");
 
-// Routes
 app.use("/api/auth", router);
 app.use("/api/business", businessRoutes);
 app.use("/api/users", userRoutes);
@@ -99,12 +95,10 @@ app.use("/api/purchase-orders", purchaseOrderRoute);
 app.use("/api/profile", ProfileRouter);
 app.use("/api/settings", settingRoute);
 
-// Root route
 app.get("/", (req, res) => {
     res.send("Welcome to the Inventory and Sales Tracker API!");
 });
 
-// Error handler for CORS
 app.use((err, req, res, next) => {
     if (err.message && err.message.includes("CORS")) {
         return res.status(403).json({
@@ -115,7 +109,6 @@ app.use((err, req, res, next) => {
     next(err);
 });
 
-// Start server
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
