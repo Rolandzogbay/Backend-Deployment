@@ -28,6 +28,7 @@ const isProd = process.env.NODE_ENV === "production";
 
 const allowedOrigins = [
     "http://localhost:5173",
+    "https://checkit-nana.vercel.app",
     process.env.APP_URL,
 ].filter(Boolean);
 
@@ -46,9 +47,15 @@ app.use(
             console.log("Allowed origins:", allowedOrigins);
 
             if (!origin) return callback(null, true);
-            if (allowedOrigins.includes(origin)) return callback(null, true);
 
-            return callback(new Error(`Not allowed by CORS: ${origin}`));
+            const normalizedOrigin = origin.replace(/\/$/, "");
+            const normalizedAllowed = allowedOrigins.map((o) => o.replace(/\/$/, ""));
+
+            if (normalizedAllowed.includes(normalizedOrigin)) {
+                return callback(null, true);
+            }
+
+            return callback(null, false);
         },
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -97,16 +104,6 @@ app.use("/api/settings", settingRoute);
 
 app.get("/", (req, res) => {
     res.send("Welcome to the Inventory and Sales Tracker API!");
-});
-
-app.use((err, req, res, next) => {
-    if (err.message && err.message.includes("CORS")) {
-        return res.status(403).json({
-            message: err.message,
-            origin: req.headers.origin || null,
-        });
-    }
-    next(err);
 });
 
 app.listen(PORT, () => {
