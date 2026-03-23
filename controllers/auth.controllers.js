@@ -8,7 +8,7 @@ import jwt from "jsonwebtoken";
 import { sendEmail } from "../utils/mail/mailer.js";
 import { generateTokenPair } from "../utils/helpers/resetToken.js";
 
-const ACCESS_TOKEN_EXPIRES = process.env.ACCESS_TOKEN_EXPIRES || "24hr";
+const ACCESS_TOKEN_EXPIRES = process.env.ACCESS_TOKEN_EXPIRES || "24h";
 const REFRESH_TOKEN_EXPIRES = process.env.REFRESH_TOKEN_EXPIRES || "7d";
 
 const REFRESH_COOKIE_MAX_AGE =
