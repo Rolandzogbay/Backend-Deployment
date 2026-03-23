@@ -4,7 +4,7 @@ import bcrypt from "bcrypt";
 import Business from "../models/business.models.js";
 import User from "../models/user.models.js";
 
-async function seed() {
+export async function createSuperAdmin() {
     const email = process.env.SUPER_ADMIN_EMAIL;
     const password = process.env.SUPER_ADMIN_PASSWORD;
 

@@ -5,6 +5,7 @@ import morgan from "morgan";
 import session from "express-session";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+import { createSuperAdmin } from "./scripts/seedSuperAdmin.js";
 
 import "./models/association.js";
 import router from "./route/auth.routes.js";
@@ -90,6 +91,7 @@ app.get("/health", (req, res) => {
 
 await db.sync();
 console.log("All models synced correctly..");
+await createSuperAdmin();
 
 app.use("/api/auth", router);
 app.use("/api/business", businessRoutes);
