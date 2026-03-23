@@ -172,20 +172,25 @@ export const registerUser = async (req, res) => {
             user.email
         )}`;
 
-        sendEmail({
-            to: user.email,
-            subject: "Account Created Successfully.",
-            text: `Verify your email: ${verifyLink}`,
-            html: `
-                <div style="font-family: Arial, sans-serif">
-                    <h2>Verify your email</h2>
-                    <p>Please verify your email to activate your account.</p>
-                    <p><a href="${verifyLink}">Verify Email</a></p>
-                    <p>This link expires in 24 hours.</p>
-                </div>
-            `,
-        }).catch((err) => console.error("Verification email failed:", err));
+        try {
+            await sendEmail({
+                to: user.email,
+                subject: "Verify your email",
+                text: `Verify your email: ${verifyLink}`,
+                html: `
+            <div style="font-family: Arial, sans-serif">
+                <h2>Verify your email</h2>
+                <p>Please verify your email to activate your account.</p>
+                <p><a href="${verifyLink}">Verify Email</a></p>
+                <p>This link expires in 24 hours.</p>
+            </div>
+        `,
+            });
 
+            console.log("Verification email sent successfully to:", user.email);
+        } catch (mailError) {
+            console.error("Verification email failed during signup:", mailError);
+        }
         const jwtPayload = {
             userId: user.id,
             businessId: user.businessId,
