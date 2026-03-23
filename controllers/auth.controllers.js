@@ -1,3 +1,4 @@
+// controllers/auth.controllers.js
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -5,12 +6,11 @@ import jwt from "jsonwebtoken";
 import Business from "../models/business.models.js";
 import BusinessSettings from "../models/businessSettings.models.js";
 import User from "../models/user.models.js";
-
-import { sendEmail } from "../utils/mail/mailer.js";
 import { generateTokenPair } from "../utils/helpers/resetToken.js";
 
 const ACCESS_TOKEN_EXPIRES = process.env.ACCESS_TOKEN_EXPIRES || "24h";
 const REFRESH_TOKEN_EXPIRES = process.env.REFRESH_TOKEN_EXPIRES || "7d";
+
 const REFRESH_COOKIE_MAX_AGE =
     Number(process.env.REFRESH_COOKIE_MAX_AGE_MS) || 7 * 24 * 60 * 60 * 1000;
 
@@ -73,18 +73,7 @@ function safeUserResponse(user, business = null) {
     };
 }
 
-function buildVerifyLink(userEmail, rawToken) {
-    return `${process.env.BACKEND_URL}/api/auth/verify-email?token=${rawToken}&email=${encodeURIComponent(
-        userEmail
-    )}`;
-}
-
-function buildResetLink(userEmail, rawToken) {
-    return `${process.env.APP_URL}/reset-password?token=${rawToken}&email=${encodeURIComponent(
-        userEmail
-    )}`;
-}
-
+// TEMP: Email verification is disabled for now
 export const registerUser = async (req, res) => {
     const transaction = await Business.sequelize.transaction();
 
@@ -104,9 +93,7 @@ export const registerUser = async (req, res) => {
 
         if (!name || !owner_name || !email || !password || !taxIdentificationNumber) {
             await transaction.rollback();
-            return res.status(400).json({
-                message: "All required fields are required",
-            });
+            return res.status(400).json({ message: "All required fields are required" });
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -171,15 +158,12 @@ export const registerUser = async (req, res) => {
                     : null,
                 role: "business_admin",
                 businessId: business.id,
+                email_verified: true, // TEMP: auto-verify user
+                email_verification_token: null,
+                email_verify_expires: null,
             },
             { transaction }
         );
-
-        const { rawToken, hashedToken } = generateTokenPair();
-
-        user.email_verification_token = hashedToken;
-        user.email_verify_expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        await user.save({ transaction });
 
         await BusinessSettings.create(
             {
@@ -190,163 +174,30 @@ export const registerUser = async (req, res) => {
 
         await transaction.commit();
 
-        const verifyLink = buildVerifyLink(user.email, rawToken);
-
-        sendEmail({
-            to: user.email,
-            subject: "Verify your email",
-            text: `Verify your email: ${verifyLink}`,
-            html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-          <h2>Verify your email</h2>
-          <p>Please verify your email to activate your account.</p>
-          <p>
-            <a
-              href="${verifyLink}"
-              style="display:inline-block;padding:10px 16px;background:#f97316;color:#ffffff;text-decoration:none;border-radius:8px;"
-            >
-              Verify Email
-            </a>
-          </p>
-          <p>This link expires in 24 hours.</p>
-        </div>
-      `,
-        })
-            .then(() => {
-                console.log("Verification email sent successfully to:", user.email);
-            })
-            .catch((mailError) => {
-                console.error("Verification email failed during signup:", mailError);
-            });
-
         return res.status(201).json({
-            message: "Business and user registered successfully. Please verify your email.",
+            message: "Business and user registered successfully.",
             user: safeUserResponse(user, business),
-            requiresEmailVerification: true,
+            requiresEmailVerification: false,
         });
     } catch (error) {
         if (!transaction.finished) {
             await transaction.rollback();
         }
-
         console.error("Registration error:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 };
 
+// TEMP: harmless redirect while email verification is disabled
 export const verifyEmailRedirect = async (req, res) => {
-    try {
-        const { email, token } = req.query;
-
-        if (!email || !token) {
-            return res.redirect(`${process.env.APP_URL}/login?verified=0`);
-        }
-
-        const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-        const user = await User.findOne({
-            where: {
-                email,
-                email_verification_token: hashedToken,
-            },
-        });
-
-        if (!user) {
-            return res.redirect(`${process.env.APP_URL}/login?verified=0`);
-        }
-
-        if (!user.email_verify_expires || user.email_verify_expires < new Date()) {
-            return res.redirect(`${process.env.APP_URL}/login?verified=expired`);
-        }
-
-        if (!user.email_verified) {
-            user.email_verified = true;
-            user.email_verification_token = null;
-            user.email_verify_expires = null;
-            await user.save();
-
-            sendEmail({
-                to: user.email,
-                subject: "Email verified successfully",
-                text: "Your email has been verified. You can now log in.",
-                html: `
-          <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <h2>Email Verified</h2>
-            <p>Your email has been verified successfully.</p>
-            <p>You can now log in to your account.</p>
-          </div>
-        `,
-            }).catch((error) => {
-                console.error("Post-verification email failed:", error);
-            });
-        }
-
-        return res.redirect(`${process.env.APP_URL}/login?verified=1`);
-    } catch (error) {
-        console.error("verifyEmailRedirect error:", error);
-        return res.redirect(`${process.env.APP_URL}/login?verified=0`);
-    }
+    return res.redirect(`${process.env.APP_URL}/login?verified=1`);
 };
 
+// TEMP: verification disabled
 export const resendVerificationEmail = async (req, res) => {
-    try {
-        const { email } = req.body;
-
-        if (!email) {
-            return res.status(400).json({ message: "Email is required" });
-        }
-
-        const genericMsg = "If that email exists, we have sent a verification link.";
-
-        const user = await User.findOne({ where: { email } });
-
-        if (!user) {
-            return res.status(200).json({ message: genericMsg });
-        }
-
-        if (user.email_verified) {
-            return res
-                .status(200)
-                .json({ message: "Your email is already verified. Please login." });
-        }
-
-        const { rawToken, hashedToken } = generateTokenPair();
-
-        user.email_verification_token = hashedToken;
-        user.email_verify_expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        await user.save();
-
-        const verifyLink = buildVerifyLink(user.email, rawToken);
-
-        await sendEmail({
-            to: user.email,
-            subject: "Verify your email",
-            text: `Verify your email: ${verifyLink}`,
-            html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-          <h2>Verify your email</h2>
-          <p>Click the button below to verify your email and activate your account.</p>
-          <p>
-            <a
-              href="${verifyLink}"
-              style="display:inline-block;padding:10px 14px;background:#f97316;color:#ffffff;text-decoration:none;border-radius:8px;"
-            >
-              Verify Email
-            </a>
-          </p>
-          <p>This link expires in 24 hours.</p>
-        </div>
-      `,
-        });
-
-        return res.status(200).json({ message: genericMsg });
-    } catch (error) {
-        console.error("Resend verification error:", error);
-        return res.status(500).json({
-            message: "Failed to resend verification email",
-            error: error?.message || "Unknown error",
-        });
-    }
+    return res.status(200).json({
+        message: "Email verification is temporarily disabled.",
+    });
 };
 
 export const loginUser = async (req, res) => {
@@ -362,13 +213,6 @@ export const loginUser = async (req, res) => {
         const user = await User.findOne({ where: { email } });
         if (!user) {
             return res.status(400).json({ message: "Invalid email or password" });
-        }
-
-        if (!user.email_verified) {
-            return res.status(403).json({
-                message: "Please verify your email before logging in.",
-                emailNotVerified: true,
-            });
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
@@ -403,7 +247,6 @@ export const loginUser = async (req, res) => {
 export const refreshToken = async (req, res) => {
     try {
         const tokenFromCookie = req.cookies?.refreshToken;
-
         if (!tokenFromCookie) {
             return res.status(401).json({ message: "Missing refresh token" });
         }
@@ -420,6 +263,8 @@ export const refreshToken = async (req, res) => {
             return res.status(401).json({ message: "User not found" });
         }
 
+        const business = await Business.findByPk(user.businessId);
+
         const newPayload = {
             userId: user.id,
             businessId: user.businessId,
@@ -430,8 +275,6 @@ export const refreshToken = async (req, res) => {
         const newRefreshToken = signRefreshToken(newPayload);
 
         setRefreshCookie(res, newRefreshToken);
-
-        const business = await Business.findByPk(user.businessId);
 
         return res.status(200).json({
             message: "Token refreshed",
@@ -463,6 +306,7 @@ export const forgotPassword = async (req, res) => {
         }
 
         const user = await User.findOne({ where: { email } });
+
         const genericMsg = "If that email exists, a reset link has been sent.";
 
         if (!user) {
@@ -475,28 +319,13 @@ export const forgotPassword = async (req, res) => {
         user.reset_password_expires = new Date(Date.now() + 15 * 60 * 1000);
         await user.save();
 
-        const resetLink = buildResetLink(email, rawToken);
-
-        await sendEmail({
-            to: email,
-            subject: "Reset your password",
-            text: `Reset your password using this link: ${resetLink}`,
-            html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-          <h2>Password reset</h2>
-          <p>You requested to reset your password.</p>
-          <p>
-            <a href="${resetLink}" target="_blank" rel="noreferrer">
-              Click here to reset
-            </a>
-          </p>
-          <p>This link expires in 15 minutes.</p>
-          <p>If you didn&apos;t request this, you can ignore this email.</p>
-        </div>
-      `,
+        // TEMP: Since email sending is disabled for now, return the reset token in response only for development fallback
+        // Remove this before production public release if needed.
+        return res.status(200).json({
+            message: genericMsg,
+            resetToken: rawToken,
+            email,
         });
-
-        return res.status(200).json({ message: genericMsg });
     } catch (error) {
         console.error("Forgot password error:", error);
         return res.status(500).json({ message: "Internal server error" });
