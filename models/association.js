@@ -8,6 +8,7 @@ import Business from "./business.models.js"
 import user from "./user.models.js"
 import Customer from "./customers.models.js"
 import BusinessSettings from "./businessSettings.models.js"
+import Supplier from "./suppliers.models.js"
 
 Sale.hasMany(SaleItem, {
     foreignKey: 'saleId',
@@ -149,4 +150,38 @@ user.hasMany(PurchaseOrder, {
 PurchaseOrder.belongsTo(user, {
     foreignKey: "userId",
     as: "user"
+});
+
+Business.hasMany(Supplier, {
+    foreignKey: "businessId",
+    as: "suppliers",
+    onDelete: "CASCADE",
+});
+
+Supplier.belongsTo(Business, {
+    foreignKey: "businessId",
+    as: "business",
+});
+
+// Supplier ↔ PurchaseOrder
+Business.hasMany(PurchaseOrder, {
+    foreignKey: "businessId",
+    as: "purchaseOrders",
+    onDelete: "CASCADE",
+});
+
+PurchaseOrder.belongsTo(Business, {
+    foreignKey: "businessId",
+    as: "business",
+});
+
+Supplier.hasMany(PurchaseOrder, {
+    foreignKey: "supplierId",
+    as: "purchaseOrders",
+    onDelete: "SET NULL",
+});
+
+PurchaseOrder.belongsTo(Supplier, {
+    foreignKey: "supplierId",
+    as: "supplier",
 });
