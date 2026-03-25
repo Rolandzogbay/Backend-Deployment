@@ -21,11 +21,11 @@ export const createCustomerService = async (businessId, data) => {
 
     const customer = await Customer.create({
         name,
-        email,
-        phone_number,
-        address,
-        notes,
-        businessId: req.user.businessId,
+        email: String(email).trim().toLowerCase(),
+        phone_number: phone_number ? String(phone_number).trim() : null,
+        address: address ? String(address).trim() : null,
+        notes: notes ? String(notes).trim() : null,
+        businessId,
     });
 
     return customer;
