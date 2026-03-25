@@ -164,16 +164,6 @@ Supplier.belongsTo(Business, {
 });
 
 // Supplier ↔ PurchaseOrder
-Business.hasMany(PurchaseOrder, {
-    foreignKey: "businessId",
-    as: "purchaseOrders",
-    onDelete: "CASCADE",
-});
-
-PurchaseOrder.belongsTo(Business, {
-    foreignKey: "businessId",
-    as: "business",
-});
 
 Supplier.hasMany(PurchaseOrder, {
     foreignKey: "supplierId",

@@ -7,10 +7,6 @@ const PurchaseOrder = db.define("PurchaseOrder", {
         autoIncrement: true,
         primaryKey: true
     },
-    supplier_name: {
-        type: DataTypes.STRING,
-        allowNull: false
-    },
     status: {
         type: DataTypes.ENUM("pending", "received", "cancelled"),
         allowNull: false,
@@ -46,7 +42,17 @@ const PurchaseOrder = db.define("PurchaseOrder", {
             key: "id"
         },
         onDelete: "CASCADE"
-    }
+    },
+    supplierId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: "Supplier",
+            key: "id",
+        },
+        onDelete: "SET NULL",
+    },
+
 }, {
     timestamps: true,
     freezeTableName: true

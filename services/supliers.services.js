@@ -1,84 +1,144 @@
-import {
-    createSupplierService,
-    getSuppliersByBusinessService,
-    getSupplierByIdService,
-    updateSupplierService,
-    deleteSupplierService,
-} from "../services/suppliers.services.js";
+import Supplier from "../models/suppliers.models.js";
+import AppError from "../utils/helpers/app.errors.js";
 
-export const createSupplier = async (req, res) => {
-    try {
-        const supplier = await createSupplierService(req.user.businessId, req.body);
-
-        return res.status(201).json({
-            message: "Supplier created successfully",
-            supplier,
-        });
-    } catch (error) {
-        console.error("Error creating supplier:", error);
-        return res.status(error.statusCode || 500).json({
-            message: error.message || "Internal server error",
-        });
-    }
+const normalizeText = (value) => {
+    if (value === undefined || value === null) return null;
+    const trimmed = String(value).trim();
+    return trimmed ? trimmed : null;
 };
 
-export const getSuppliersByBusiness = async (req, res) => {
-    try {
-        const suppliers = await getSuppliersByBusinessService(req.user.businessId);
+export const createSupplierService = async (businessId, data) => {
+    const { name, email, phone_number, contact_person, address, notes } = data;
 
-        return res.status(200).json(suppliers);
-    } catch (error) {
-        console.error("Error fetching suppliers:", error);
-        return res.status(error.statusCode || 500).json({
-            message: error.message || "Internal server error",
-        });
+    if (!businessId) {
+        throw new AppError("Business ID is required", 400);
     }
+
+    const cleanName = normalizeText(name);
+    const cleanEmail = normalizeText(email)?.toLowerCase() || null;
+    const cleanPhone = normalizeText(phone_number);
+    const cleanContactPerson = normalizeText(contact_person);
+    const cleanAddress = normalizeText(address);
+    const cleanNotes = normalizeText(notes);
+
+    if (!cleanName) {
+        throw new AppError("Supplier name is required", 400);
+    }
+
+    const existingSupplier = await Supplier.findOne({
+        where: {
+            name: cleanName,
+            businessId,
+        },
+    });
+
+    if (existingSupplier) {
+        throw new AppError("Supplier with this name already exists", 409);
+    }
+
+    const supplier = await Supplier.create({
+        name: cleanName,
+        email: cleanEmail,
+        phone_number: cleanPhone,
+        contact_person: cleanContactPerson,
+        address: cleanAddress,
+        notes: cleanNotes,
+        businessId,
+    });
+
+    return supplier;
 };
 
-export const getSupplierById = async (req, res) => {
-    try {
-        const supplier = await getSupplierByIdService(req.user.businessId, req.params.id);
-
-        return res.status(200).json(supplier);
-    } catch (error) {
-        console.error("Error fetching supplier:", error);
-        return res.status(error.statusCode || 500).json({
-            message: error.message || "Internal server error",
-        });
+export const getSuppliersByBusinessService = async (businessId) => {
+    if (!businessId) {
+        throw new AppError("Business ID is required", 400);
     }
+
+    return await Supplier.findAll({
+        where: { businessId },
+        order: [["createdAt", "DESC"]],
+    });
 };
 
-export const updateSupplier = async (req, res) => {
-    try {
-        const supplier = await updateSupplierService(
-            req.user.businessId,
-            req.params.id,
-            req.body
-        );
-
-        return res.status(200).json({
-            message: "Supplier updated successfully",
-            supplier,
-        });
-    } catch (error) {
-        console.error("Error updating supplier:", error);
-        return res.status(error.statusCode || 500).json({
-            message: error.message || "Internal server error",
-        });
+export const getSupplierByIdService = async (businessId, id) => {
+    if (!businessId) {
+        throw new AppError("Business ID is required", 400);
     }
+
+    const supplier = await Supplier.findOne({
+        where: { id, businessId },
+    });
+
+    if (!supplier) {
+        throw new AppError("Supplier not found", 404);
+    }
+
+    return supplier;
 };
 
-export const deleteSupplier = async (req, res) => {
-    try {
-        await deleteSupplierService(req.user.businessId, req.params.id);
+export const updateSupplierService = async (businessId, id, data) => {
+    const { name, email, phone_number, contact_person, address, notes } = data;
 
-        return res.status(200).json({
-            message: "Supplier deleted successfully",
-        });
-    } catch (error) {
-        console.error("Error deleting supplier:", error);
-        return res.status(error.statusCode || 500).json({
-            message: error.message || "Internal server error",
-        });
+    if (!businessId) {
+        throw new AppError("Business ID is required", 400);
     }
+
+    const supplier = await Supplier.findOne({
+        where: { id, businessId },
+    });
+
+    if (!supplier) {
+        throw new AppError("Supplier not found", 404);
+    }
+
+    const cleanName = normalizeText(name);
+    const cleanEmail = normalizeText(email)?.toLowerCase() || null;
+    const cleanPhone = normalizeText(phone_number);
+    const cleanContactPerson = normalizeText(contact_person);
+    const cleanAddress = normalizeText(address);
+    const cleanNotes = normalizeText(notes);
+
+    if (!cleanName) {
+        throw new AppError("Supplier name is required", 400);
+    }
+
+    const existingSupplier = await Supplier.findOne({
+        where: {
+            name: cleanName,
+            businessId,
+        },
+    });
+
+    if (existingSupplier && existingSupplier.id !== supplier.id) {
+        throw new AppError("Another supplier with this name already exists", 409);
+    }
+
+    await supplier.update({
+        name: cleanName,
+        email: cleanEmail,
+        phone_number: cleanPhone,
+        contact_person: cleanContactPerson,
+        address: cleanAddress,
+        notes: cleanNotes,
+    });
+
+    return supplier;
+};
+
+export const deleteSupplierService = async (businessId, id) => {
+    if (!businessId) {
+        throw new AppError("Business ID is required", 400);
+    }
+
+    const supplier = await Supplier.findOne({
+        where: { id, businessId },
+    });
+
+    if (!supplier) {
+        throw new AppError("Supplier not found", 404);
+    }
+
+    await supplier.destroy();
+
+    return true;
 };
