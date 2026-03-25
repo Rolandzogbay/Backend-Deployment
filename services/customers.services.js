@@ -2,7 +2,7 @@ import Customer from '../models/customers.models.js'
 import AppError from "../utils/helpers/app.errors.js";
 
 export const createCustomerService = async (businessId, data) => {
-    const { name, email, phone_number } = data;
+    const { name, email, phone_number, address, notes } = data;
 
     if (!name || !email) {
         throw new AppError("Name and email are required", 400);
@@ -20,10 +20,12 @@ export const createCustomerService = async (businessId, data) => {
     }
 
     const customer = await Customer.create({
-        name: String(name).trim(),
-        email: String(email).trim().toLowerCase(),
-        phone_number: phone_number || null,
-        businessId
+        name,
+        email,
+        phone_number,
+        address,
+        notes,
+        businessId: req.user.businessId,
     });
 
     return customer;
@@ -84,6 +86,14 @@ export const updateCustomerService = async (id, businessId, data) => {
 
     if (data.phone_number !== undefined) {
         updates.phone_number = data.phone_number;
+    }
+
+    if (data.address !== undefined) {
+        updates.address = data.address;
+    }
+
+    if (data.notes !== undefined) {
+        updates.notes = data.notes;
     }
 
     await customer.update(updates);
