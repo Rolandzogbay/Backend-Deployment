@@ -1,29 +1,48 @@
-// models/sales.models.js
+// models/inventoryBatch.models.js
 import db from "../config/connect.js";
 import { DataTypes } from "sequelize";
 
-const Sale = db.define(
-    "Sale",
+const InventoryBatch = db.define(
+    "InventoryBatch",
     {
         id: {
             type: DataTypes.INTEGER,
             autoIncrement: true,
             primaryKey: true,
         },
-        total_price: {
+        batch_number: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
+        quantity_received: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+        },
+        quantity_remaining: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+        },
+        cost_price: {
             type: DataTypes.DECIMAL(10, 2),
-            allowNull: false,
-            defaultValue: 0.0,
+            allowNull: true,
         },
-        payment_method: {
-            type: DataTypes.ENUM("cash", "card", "mobile_money"),
-            allowNull: false,
-            defaultValue: "cash",
+        expiry_date: {
+            type: DataTypes.DATEONLY,
+            allowNull: true,
         },
-        sale_date: {
-            type: DataTypes.DATE,
+        received_date: {
+            type: DataTypes.DATEONLY,
             allowNull: false,
             defaultValue: DataTypes.NOW,
+        },
+        productId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            references: {
+                model: "Product",
+                key: "id",
+            },
+            onDelete: "CASCADE",
         },
         businessId: {
             type: DataTypes.INTEGER,
@@ -34,20 +53,11 @@ const Sale = db.define(
             },
             onDelete: "CASCADE",
         },
-        userId: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
-            references: {
-                model: "User",
-                key: "id",
-            },
-            onDelete: "CASCADE",
-        },
-        customer_id: {
+        createdBy: {
             type: DataTypes.INTEGER,
             allowNull: true,
             references: {
-                model: "Customer",
+                model: "User",
                 key: "id",
             },
             onDelete: "SET NULL",
@@ -59,4 +69,4 @@ const Sale = db.define(
     }
 );
 
-export default Sale;
+export default InventoryBatch;

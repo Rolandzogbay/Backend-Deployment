@@ -19,6 +19,7 @@ import purchaseOrderRoute from "./route/purchaseOrder.routes.js";
 import ProfileRouter from "./route/profile.routes.js";
 import settingRoute from "./route/settings.routes.js";
 import supplierRoute from "./route/suppliers.routes.js";
+import inventory from "./route/inventory.routes.js";
 
 import db from "./config/connect.js";
 
@@ -105,6 +106,7 @@ app.use("/api/purchase-orders", purchaseOrderRoute);
 app.use("/api/profile", ProfileRouter);
 app.use("/api/settings", settingRoute);
 app.use("/api/suppliers", supplierRoute)
+app.use("api/inventory", inventory)
 
 app.get("/", (req, res) => {
     res.send("Welcome to the Inventory and Sales Tracker API!");

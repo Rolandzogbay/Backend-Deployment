@@ -68,12 +68,13 @@ function safeUserResponse(user, business = null) {
                 address: business.address,
                 logo_url: business.logo_url,
                 theme_color: business.theme_color,
+                type: business.type,
+                is_personal: business.is_personal,
             }
             : null,
     };
 }
 
-// TEMP: Email verification is disabled for now
 export const registerUser = async (req, res) => {
     const transaction = await Business.sequelize.transaction();
 
@@ -89,11 +90,33 @@ export const registerUser = async (req, res) => {
             business_phone,
             address,
             theme_color,
+            useType,
+            business_name,
         } = req.body;
 
-        if (!name || !owner_name || !email || !password || !taxIdentificationNumber) {
+        const registrationMode = useType === "personal" ? "personal" : "business";
+
+        if (!email || !password) {
             await transaction.rollback();
-            return res.status(400).json({ message: "All required fields are required" });
+            return res.status(400).json({ message: "Email and password are required" });
+        }
+
+        if (registrationMode === "business") {
+            if (!name || !owner_name || !taxIdentificationNumber) {
+                await transaction.rollback();
+                return res.status(400).json({
+                    message: "Business registration requires name, owner_name and taxIdentificationNumber",
+                });
+            }
+        }
+
+        if (registrationMode === "personal") {
+            if (!name) {
+                await transaction.rollback();
+                return res.status(400).json({
+                    message: "Name is required for personal registration",
+                });
+            }
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -104,9 +127,9 @@ export const registerUser = async (req, res) => {
 
         if (password.length < 8) {
             await transaction.rollback();
-            return res
-                .status(400)
-                .json({ message: "Password must be at least 8 characters" });
+            return res.status(400).json({
+                message: "Password must be at least 8 characters",
+            });
         }
 
         if (theme_color && !/^#([A-Fa-f0-9]{6})$/.test(theme_color)) {
@@ -114,13 +137,7 @@ export const registerUser = async (req, res) => {
             return res.status(400).json({ message: "Invalid theme color format" });
         }
 
-        const existingBiz = await Business.findOne({ where: { name } });
-        if (existingBiz) {
-            await transaction.rollback();
-            return res.status(400).json({ message: "Business already exists" });
-        }
-
-        const existingUser = await User.findOne({ where: { email } });
+        const existingUser = await User.findOne({ where: { email }, transaction });
         if (existingUser) {
             await transaction.rollback();
             return res.status(400).json({ message: "Email already in use" });
@@ -129,8 +146,50 @@ export const registerUser = async (req, res) => {
         const avatarFile = req.files?.avatar?.[0];
         const businessLogoFile = req.files?.businessLogo?.[0];
 
-        const business = await Business.create(
-            {
+        let businessPayload = null;
+        let ownerNameToUse = owner_name || name;
+
+        if (registrationMode === "personal") {
+            const personalBusinessName =
+                business_name?.trim() || `${name}'s Inventory`;
+
+            const existingBiz = await Business.findOne({
+                where: { name: personalBusinessName },
+                transaction,
+            });
+
+            if (existingBiz) {
+                await transaction.rollback();
+                return res.status(400).json({
+                    message: "A personal workspace with this name already exists",
+                });
+            }
+
+            businessPayload = {
+                name: personalBusinessName,
+                owner_name: name,
+                email: business_email || null,
+                phone: business_phone || phone || null,
+                address: address || null,
+                theme_color: theme_color || "#f97316",
+                logo_url: businessLogoFile
+                    ? `/${businessLogoFile.path.replace(/\\/g, "/")}`
+                    : null,
+                type: "personal",
+                is_personal: true,
+            };
+        } else {
+            const existingBiz = await Business.findOne({
+                where: { name },
+                transaction,
+            });
+
+            if (existingBiz) {
+                await transaction.rollback();
+                return res.status(400).json({ message: "Business already exists" });
+            }
+
+            businessPayload = {
                 name,
                 owner_name,
                 taxIdentificationNumber,
@@ -141,15 +200,18 @@ export const registerUser = async (req, res) => {
                 logo_url: businessLogoFile
                     ? `/${businessLogoFile.path.replace(/\\/g, "/")}`
                     : null,
-            },
-            { transaction }
-        );
+                type: "registered",
+                is_personal: false,
+            };
+        }
+
+        const business = await Business.create(businessPayload, { transaction });
 
         const hashedPassword = await bcrypt.hash(password, 12);
 
         const user = await User.create(
             {
-                name: owner_name,
+                name: ownerNameToUse,
                 email,
                 phone: phone || null,
                 password: hashedPassword,
@@ -158,7 +220,7 @@ export const registerUser = async (req, res) => {
                     : null,
                 role: "business_admin",
                 businessId: business.id,
-                email_verified: true, // TEMP: auto-verify user
+                email_verified: true,
                 email_verification_token: null,
                 email_verify_expires: null,
             },
@@ -175,7 +237,10 @@ export const registerUser = async (req, res) => {
         await transaction.commit();
 
         return res.status(201).json({
-            message: "Business and user registered successfully.",
+            message:
+                registrationMode === "personal"
+                    ? "Personal workspace and user registered successfully."
+                    : "Business and user registered successfully.",
             user: safeUserResponse(user, business),
             requiresEmailVerification: false,
         });
@@ -188,12 +253,10 @@ export const registerUser = async (req, res) => {
     }
 };
 
-// TEMP: harmless redirect while email verification is disabled
 export const verifyEmailRedirect = async (req, res) => {
     return res.redirect(`${process.env.APP_URL}/login?verified=1`);
 };
 
-// TEMP: verification disabled
 export const resendVerificationEmail = async (req, res) => {
     return res.status(200).json({
         message: "Email verification is temporarily disabled.",
@@ -205,9 +268,7 @@ export const loginUser = async (req, res) => {
         const { email, password } = req.body;
 
         if (!email || !password) {
-            return res
-                .status(400)
-                .json({ message: "Email & Password fields are required" });
+            return res.status(400).json({ message: "Email & Password fields are required" });
         }
 
         const user = await User.findOne({ where: { email } });
@@ -319,8 +380,6 @@ export const forgotPassword = async (req, res) => {
         user.reset_password_expires = new Date(Date.now() + 15 * 60 * 1000);
         await user.save();
 
-        // TEMP: Since email sending is disabled for now, return the reset token in response only for development fallback
-        // Remove this before production public release if needed.
         return res.status(200).json({
             message: genericMsg,
             resetToken: rawToken,
@@ -337,15 +396,15 @@ export const resetPassword = async (req, res) => {
         const { email, token, newPassword } = req.body;
 
         if (!email || !token || !newPassword) {
-            return res
-                .status(400)
-                .json({ message: "Email, token and newPassword are required" });
+            return res.status(400).json({
+                message: "Email, token and newPassword are required",
+            });
         }
 
         if (newPassword.length < 8) {
-            return res
-                .status(400)
-                .json({ message: "Password must be at least 8 characters" });
+            return res.status(400).json({
+                message: "Password must be at least 8 characters",
+            });
         }
 
         const hashedToken = crypto.createHash("sha256").update(token).digest("hex");

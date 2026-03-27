@@ -9,6 +9,7 @@ import user from "./user.models.js"
 import Customer from "./customers.models.js"
 import BusinessSettings from "./businessSettings.models.js"
 import Supplier from "./suppliers.models.js"
+import InventoryBatch from "./InventoryBatch.model.js"
 
 Sale.hasMany(SaleItem, {
     foreignKey: 'saleId',
@@ -157,6 +158,18 @@ Business.hasMany(Supplier, {
     as: "suppliers",
     onDelete: "CASCADE",
 });
+
+// Product ↔ InventoryBatch
+Product.hasMany(InventoryBatch, { foreignKey: "productId", as: "batches" });
+InventoryBatch.belongsTo(Product, { foreignKey: "productId", as: "product" });
+
+// Business ↔ InventoryBatch
+Business.hasMany(InventoryBatch, { foreignKey: "businessId", as: "inventoryBatches" });
+InventoryBatch.belongsTo(Business, { foreignKey: "businessId", as: "business" });
+
+// User ↔ InventoryBatch
+user.hasMany(InventoryBatch, { foreignKey: "createdBy", as: "createdBatches" });
+InventoryBatch.belongsTo(user, { foreignKey: "createdBy", as: "creator" });
 
 Supplier.belongsTo(Business, {
     foreignKey: "businessId",

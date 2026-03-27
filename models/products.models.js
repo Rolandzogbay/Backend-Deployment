@@ -16,6 +16,23 @@ const Product = db.define(
         },
         description: {
             type: DataTypes.TEXT,
+            allowNull: true,
+        },
+        sku: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
+        barcode: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
+        category: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
+        unit: {
+            type: DataTypes.STRING,
+            allowNull: true,
         },
         price: {
             type: DataTypes.DECIMAL(10, 2),
@@ -34,6 +51,11 @@ const Product = db.define(
             type: DataTypes.INTEGER,
             allowNull: false,
             defaultValue: 10,
+        },
+        track_expiry: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false,
         },
         is_active: {
             type: DataTypes.BOOLEAN,

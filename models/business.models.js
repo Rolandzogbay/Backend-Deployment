@@ -39,10 +39,24 @@ const Business = db.define(
             allowNull: false,
             defaultValue: "#f97316",
         },
+        taxIdentificationNumber: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        type: {
+            type: DataTypes.ENUM("registered", "informal", "personal"),
+            allowNull: false,
+            defaultValue: "registered",
+        },
+        is_personal: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false,
+        },
     },
     {
         timestamps: true,
-        freezeTableName: true
+        freezeTableName: true,
     }
 );
 
