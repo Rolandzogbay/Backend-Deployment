@@ -102,10 +102,10 @@ export const registerUser = async (req, res) => {
         }
 
         if (registrationMode === "business") {
-            if (!name || !owner_name || !taxIdentificationNumber) {
+            if (!name || !owner_name) {
                 await transaction.rollback();
                 return res.status(400).json({
-                    message: "Business registration requires name, owner_name and taxIdentificationNumber",
+                    message: "Business registration requires name and owner_name",
                 });
             }
         }
@@ -368,7 +368,7 @@ export const forgotPassword = async (req, res) => {
 
         const user = await User.findOne({ where: { email } });
 
-        const genericMsg = "If that email exists, a reset link has been sent.";
+        const genericMsg = "Enter the email used during registration. Invlid email address";
 
         if (!user) {
             return res.status(200).json({ message: genericMsg });

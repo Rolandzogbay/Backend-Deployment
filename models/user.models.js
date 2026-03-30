@@ -53,6 +53,14 @@ const User = db.define(
             type: DataTypes.DATE,
             allowNull: true,
         },
+        reset_password_token: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        reset_password_expires: {
+            type: DataTypes.DATE,
+            allowNull: true
+        },
         businessId: {
             type: DataTypes.INTEGER,
             allowNull: false,

@@ -31,7 +31,7 @@ const isProd = process.env.NODE_ENV === "production";
 
 const allowedOrigins = [
     "http://localhost:5173",
-    "https://checkit-nana.vercel.app",
+    "https://checkitnana.vercel.app/",
     process.env.APP_URL,
 ].filter(Boolean);
 
@@ -113,5 +113,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port http://localhost:${PORT}`);
 });

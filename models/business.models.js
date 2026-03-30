@@ -41,7 +41,7 @@ const Business = db.define(
         },
         taxIdentificationNumber: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: true
         },
         type: {
             type: DataTypes.ENUM("registered", "informal", "personal"),
